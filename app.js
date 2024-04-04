@@ -16,10 +16,9 @@ const api = axios.create({
 
 
 app.get('/', async(req, res) => {
-    // const response = await api.get('/');
-    // console.log(response)
+    const response = await api.get('/');
     res.send({
-        response:'response.data'
+        response:response.data
 });
 });
 
