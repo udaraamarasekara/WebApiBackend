@@ -12,8 +12,8 @@ const encodedCredentials = Buffer.from(`${user}:${pass}`).toString('base64');
 
 
 const api = axios.create({
-    //  baseURL: `https://web-api-data-generator-666d4a95c768.herokuapp.com/`,
-     baseURL:`http://localhost:3000/`,
+     baseURL: `https://web-api-data-generator-666d4a95c768.herokuapp.com/`,
+    // baseURL:`http://localhost:3000/`,
     headers:{
       'X-Requested-With':'XMLHttpRequest',
       'Accept':'Application/json',
