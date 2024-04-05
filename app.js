@@ -3,6 +3,10 @@ const axios = require('axios');
 var mysql = require('mysql');
 
 const app = express();
+const basicAuth = require('basic-auth')
+var cors = require('cors')
+app.options('*',cors())
+
 
 currentData = [];
 
@@ -10,6 +14,20 @@ const user = "backenduser";
 const pass = "backendpass";
 const encodedCredentials = Buffer.from(`${user}:${pass}`).toString('base64');
 
+
+const USERNAME = "frontenduser";
+const PASSWORD = "frontendpass";
+const auth = (req, res, next) => {
+  const credentials = basicAuth(req);
+   console.log(credentials)
+   if (!credentials || credentials.name !== USERNAME || credentials.pass !== PASSWORD) {
+    res.set('WWW-Authenticate', 'Basic realm="Authorization Required"');
+      return res.status(401).send('Unauthorized');
+  }
+
+  return next();
+};
+app.use(auth);
 
 const api = axios.create({
      baseURL: `https://web-api-data-generator-666d4a95c768.herokuapp.com/`,
@@ -137,6 +155,6 @@ function updateCurrnet(data)
 
 
 
-//app.listen(3001)
+app.listen(3001)
 
-app.listen(process.env.PORT || 3001)
+// app.listen(process.env.PORT || 3001)
