@@ -5,7 +5,7 @@ var mysql = require('mysql');
 const app = express();
 const basicAuth = require('basic-auth')
 var cors = require('cors')
-app.options('*',cors())
+app.use(cors())
 
 
 currentData = [];
