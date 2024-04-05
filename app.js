@@ -10,6 +10,9 @@ app.use(cors())
 
 currentData = [];
 
+
+
+
 const user = "backenduser";
 const pass = "backendpass";
 const encodedCredentials = Buffer.from(`${user}:${pass}`).toString('base64');
@@ -19,7 +22,6 @@ const USERNAME = "frontenduser";
 const PASSWORD = "frontendpass";
 const auth = (req, res, next) => {
   const credentials = basicAuth(req);
-   console.log(credentials)
    if (!credentials || credentials.name !== USERNAME || credentials.pass !== PASSWORD) {
     res.set('WWW-Authenticate', 'Basic realm="Authorization Required"');
       return res.status(401).send('Unauthorized');
@@ -50,12 +52,11 @@ async function executeFunctionOncePerDay() {
       host: "us-cluster-east-01.k8s.cleardb.net",
       user: "bb3f70534e7af5",
       password: "74ab675c",
-      database: "mydb"
+      database: "heroku_4b0f42ef002fea1"
   
     }); 
     const now = new Date();
-    const formattedDate = now.toISOString();
-     console.log(currentData)
+    const formattedDate = now.toISOString().slice(0, 10);
      con.connect(async function (err) {
       if (err) throw err;
         await currentData.forEach((tmpObj) => {
@@ -71,6 +72,82 @@ async function executeFunctionOncePerDay() {
       });
     });
  
+  }
+
+  function findMaxValue(array, condition) {
+    // Use map() to extract the values of the specified property based on condition
+
+        let maxObject = null;
+        let maxValue = Number.NEGATIVE_INFINITY;
+      
+        for (const obj of array) {
+          if (obj['amount'] > maxValue && obj['weatherCondition'] == condition) {
+            maxValue= obj['amount']
+            maxObject = obj;
+          }
+        }
+      
+        return maxObject;
+
+  }
+  function findMinValue(array, condition) {
+    // Use map() to extract the values of the specified property based on condition
+
+        let minObject = null;
+        let minValue = Number.POSITIVE_INFINITY;
+      
+        for (const obj of array) {
+         if( obj['weatherCondition'] == condition) 
+          {          
+          if (obj['amount'] < minValue) {
+              minObject = obj;
+              minValue= obj['amount']
+            }
+          }
+        }
+
+      
+        return minObject;
+
+  }
+  queryDataArray=[];
+
+
+  async function queryData() {
+
+    var con =  await mysql.createConnection({
+      host: "us-cluster-east-01.k8s.cleardb.net",
+      user: "bb3f70534e7af5",
+      password: "74ab675c",
+      database: "heroku_4b0f42ef002fea1"
+  
+    }); 
+    const currentDate = new Date().toISOString().slice(0, 10);
+   await  con.connect(async function (err) {
+      if (err) throw err;
+        
+             var sql = `SELECT * FROM dailyweather WHERE DATE(time)=DATE('${currentDate}') `;
+             await con.query(sql,async function (err, result) {
+               if (err) throw err;
+                maxTmpOfDay =  await findMaxValue(result,'temperatureMax');
+                maxHumidityOfDay = await findMaxValue(result,'humidityMax');
+                maxAirPressureOfDay = await findMaxValue(result,'maxPressure');
+                minTmpOfDay = await findMinValue(result,'temperatureMin');
+                minHumidityOfDay = await findMinValue(result,'humidityMin');
+                minAirPressureOfDay = await findMinValue(result,'minPressure');
+            
+            queryDataArray.push( {
+              maxTmpOfDay :maxTmpOfDay,
+                maxHumidityOfDay:maxHumidityOfDay ,
+                maxAirPressureOfDay :maxAirPressureOfDay,
+                minTmpOfDay :minTmpOfDay,
+                minHumidityOfDay :minHumidityOfDay,
+                minAirPressureOfDay:minAirPressureOfDay
+            
+            }  );
+             
+    });
+  });
   }
 
 function scheduleNextExecution() {
@@ -142,7 +219,6 @@ function updateCurrnet(data)
 
 
   app.get('/' ,async(req, res) => {
-
     const response = await api.get('/');
     updateCurrnet(response.data.globalObj);
 
@@ -151,7 +227,12 @@ function updateCurrnet(data)
 });
 });
 
-
+app.get('/quries' ,async(req, res) => {
+   
+  
+  const response = await queryData();
+  res.send({queryDataArray});
+});
 
 
 
