@@ -31,7 +31,7 @@ async function executeFunctionOncePerDay() {
     var con =  await mysql.createConnection({
       host: "us-cluster-east-01.k8s.cleardb.net",
       user: "bb3f70534e7af5",
-      password: "",
+      password: "74ab675c",
       database: "mydb"
   
     }); 
