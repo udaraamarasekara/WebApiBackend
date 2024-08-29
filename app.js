@@ -1,25 +1,16 @@
 const express = require('express');
-const axios = require('axios');
 var mysql = require('mysql');
+var bodyParser = require('body-parser')
+var jsonParser = bodyParser.json()
 
 const app = express();
 const basicAuth = require('basic-auth')
 var cors = require('cors')
 app.use(cors())
 
-
-currentData = [];
-
-
-
-
-const user = "backenduser";
-const pass = "backendpass";
-const encodedCredentials = Buffer.from(`${user}:${pass}`).toString('base64');
-
-
-const USERNAME = "frontenduser";
-const PASSWORD = "frontendpass";
+ let currentData = [];
+const USERNAME = "user";
+const PASSWORD = "pass";
 const auth = (req, res, next) => {
   const credentials = basicAuth(req);
    if (!credentials || credentials.name !== USERNAME || credentials.pass !== PASSWORD) {
@@ -31,211 +22,133 @@ const auth = (req, res, next) => {
 };
 app.use(auth);
 
-const api = axios.create({
-     baseURL: `https://web-api-data-generator-666d4a95c768.herokuapp.com/`,
-    // baseURL:`http://localhost:3000/`,
-    headers:{
-      'X-Requested-With':'XMLHttpRequest',
-      'Accept':'Application/json',
-      'Authorization': `Basic ${encodedCredentials}`,
-      'Content-Type': 'application/json'
+async function storeLocationDataInDatabase(dataArray) {
 
-    },
-    withCredentials: true,
-  });
-
+    // var con =  await mysql.createConnection({
+    //   host: "us-cluster-east-01.k8s.cleardb.net",
+    //   user: "bb3f70534e7af5",
+    //   password: "74ab675c",
+    //   database: "heroku_4b0f42ef002fea1"
   
-  
-async function executeFunctionOncePerDay() {
+    // }); 
 
     var con =  await mysql.createConnection({
-      host: "us-cluster-east-01.k8s.cleardb.net",
-      user: "bb3f70534e7af5",
-      password: "74ab675c",
-      database: "heroku_4b0f42ef002fea1"
+      host: "localhost",
+      user: "root",
+      password: "",
+      database: "webapi"
   
     }); 
-    const now = new Date();
-    const formattedDate = now.toISOString().slice(0, 10);
-     con.connect(async function (err) {
-      if (err) throw err;
-        await currentData.forEach((tmpObj) => {
-         for (const [key, value] of Object.entries(tmpObj)) {
-           if (key !== 'district') {
-             var sql = `INSERT INTO dailyweather (amount, district, time, weatherCondition) VALUES (${value}, '${tmpObj.district}', '${formattedDate}', '${key}')`;
-             con.query(sql, function (err, result) {
-               if (err) throw err;
-               console.log("1 record inserted");
-             });
-           }
-         }
+    try {
+      let date_time = new Date();
+
+      // Start a transaction
+      await con.beginTransaction();
+
+      // Prepare your statement
+      const query = `INSERT INTO traindetails (train, date_time, latitude, longitude) VALUES (?, ?, ?, ?)`;
+
+      // Execute all queries
+      const promises = dataArray.map(data => {
+          return con.query(query, [data.train, date_time, data.lat, data.lng]);
       });
-    });
- 
+
+      // Wait for all queries to complete
+      await Promise.all(promises);
+
+      // Commit the transaction
+      await con.commit();
+
+      console.log("All records inserted");
+
+  } catch (err) {
+      console.error("Error occurred:", err);
+      await con.rollback(); // Rollback transaction on error
+  } finally {
+      await con.end();
+      console.log('MySQL connection closed.');
+  }
   }
 
-  function findMaxValue(array, condition) {
-    // Use map() to extract the values of the specified property based on condition
+  async function clearDatabase() {
 
-        let maxObject = null;
-        let maxValue = Number.NEGATIVE_INFINITY;
-      
-        for (const obj of array) {
-          if (obj['amount'] > maxValue && obj['weatherCondition'] == condition) {
-            maxValue= obj['amount']
-            maxObject = obj;
-          }
-        }
-      
-        return maxObject;
-
-  }
-  function findMinValue(array, condition) {
-    // Use map() to extract the values of the specified property based on condition
-
-        let minObject = null;
-        let minValue = Number.POSITIVE_INFINITY;
-      
-        for (const obj of array) {
-         if( obj['weatherCondition'] == condition) 
-          {          
-          if (obj['amount'] < minValue) {
-              minObject = obj;
-              minValue= obj['amount']
-            }
-          }
-        }
-
-      
-        return minObject;
-
-  }
-  queryDataArray=[];
-
-
-  async function queryData() {
+    // var con =  await mysql.createConnection({
+    //   host: "us-cluster-east-01.k8s.cleardb.net",
+    //   user: "bb3f70534e7af5",
+    //   password: "74ab675c",
+    //   database: "heroku_4b0f42ef002fea1"
+  
+    // }); 
 
     var con =  await mysql.createConnection({
-      host: "us-cluster-east-01.k8s.cleardb.net",
-      user: "bb3f70534e7af5",
-      password: "74ab675c",
-      database: "heroku_4b0f42ef002fea1"
+      host: "localhost",
+      user: "root",
+      password: "",
+      database: "webapi"
   
     }); 
-    const currentDate = new Date().toISOString().slice(0, 10);
-   await  con.connect(async function (err) {
-      if (err) throw err;
-        
-             var sql = `SELECT * FROM dailyweather WHERE DATE(time)=DATE('${currentDate}') `;
-             await con.query(sql,async function (err, result) {
-               if (err) throw err;
-                maxTmpOfDay =  await findMaxValue(result,'temperatureMax');
-                maxHumidityOfDay = await findMaxValue(result,'humidityMax');
-                maxAirPressureOfDay = await findMaxValue(result,'maxPressure');
-                minTmpOfDay = await findMinValue(result,'temperatureMin');
-                minHumidityOfDay = await findMinValue(result,'humidityMin');
-                minAirPressureOfDay = await findMinValue(result,'minPressure');
-            
-            queryDataArray.push( {
-              maxTmpOfDay :maxTmpOfDay,
-                maxHumidityOfDay:maxHumidityOfDay ,
-                maxAirPressureOfDay :maxAirPressureOfDay,
-                minTmpOfDay :minTmpOfDay,
-                minHumidityOfDay :minHumidityOfDay,
-                minAirPressureOfDay:minAirPressureOfDay
-            
-            }  );
-             
-    });
-  });
+    try {
+
+      // Start a transaction
+      await con.beginTransaction();
+
+      // Prepare your statement
+      const query = `DELETE FROM traindetails`;
+
+      // Execute all queries
+      const promises = await  con.query(query);
+    
+
+      // Wait for all queries to complete
+
+      // Commit the transaction
+      await con.commit();
+
+      console.log("All records deleted");
+
+  } catch (err) {
+      console.error("Error occurred:", err);
+      await con.rollback(); // Rollback transaction on error
+  } finally {
+      await con.end();
+      console.log('MySQL connection closed.');
+  }
   }
 
-function scheduleNextExecution() {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(now.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0); 
 
-    const timeUntilNextExecution = tomorrow.getTime() - now.getTime();
+  function scheduleNextExecution() {
+    let now = new Date();
+    
+    // Add 9 days to the current date
+    let nextDay = new Date(now);
+    nextDay.setDate(now.getDate() + 9);
+
+    // Calculate the time until the next execution
+    const timeUntilNextExecution = nextDay.getTime() - now.getTime();
+
     setTimeout(() => {
-        executeFunctionOncePerDay();
+        clearDatabase();
         scheduleNextExecution(); 
     }, timeUntilNextExecution);
 }
 
-executeFunctionOncePerDay();
+
 scheduleNextExecution();
 
 
-function updateCurrnet(data)
-{
- if(currentData.length) 
- { data.forEach((obj)=>{
-    currentData.forEach((curObj)=>{
-        if(obj.district==curObj.district)
-        {
-          if(obj.temperature < curObj.temperatureMin)
-          {
-            curObj.temperatureMin = obj.temperature
-          }  
-          if(obj.temperature > obj.temperatureMax)
-          {
-            obj.temperatureMax = obj.temperature
-          }
-          if(obj.humidity < curObj.humidityMin)
-          {
-            curObj.humidityMin = obj.humidity
-          }  
-          if(obj.humidity > obj.humidityMax)
-          {
-            obj.humidityMax = obj.humidity
-          }
-          if(obj.airPressure < curObj.airPressureMin)
-          {
-            curObj.airPressureMin = obj.airPressure
-          }  
-          if(obj.airPressure > obj.airPressureMax)
-          {
-            obj.airPressureMax = obj.airPressure
-          }
-        }
-    });
-   });
-  }else{
-    data.forEach((obj)=>{
-        currentData.push({
-           district:obj.district,  
-           temperatureMax:obj.temperature,
-           temperatureMin:obj.temperature,
-           humidityMax:obj.humidity,
-           humidityMin:obj.humidity,
-           maxPressure:obj.airPressure,
-           minPressure:obj.airPressure
-          });
-        });
 
-  }
-}
-
-
-  app.get('/' ,async(req, res) => {
-    const response = await api.get('/');
-    updateCurrnet(response.data.globalObj);
-
-    res.send({
-         response:response.data
-});
+app.post('/trainLocation' ,jsonParser,async(req, res) => {
+   storeLocationDataInDatabase(req.body);
+   currentData =req.body;
+   res.send("done");
 });
 
-app.get('/quries' ,async(req, res) => {
-   
-  
-  const response = await queryData();
-  res.send({queryDataArray});
+app.get('/updateCilent' ,async(req, res) => {
+  res.send(currentData)
 });
 
 
 
-// app.listen(3001)
+app.listen(3000)
 
-app.listen(process.env.PORT || 3001)
+// app.listen(process.env.PORT || 3001)
